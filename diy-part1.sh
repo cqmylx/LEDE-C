@@ -16,4 +16,4 @@
 # Add a feed source
 #sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
 
-#git clone https://github.com/ledewrt/luci-app-ledeproxy.git ./package/lean/luci-app-ledeproxy
+#git clone https://github.com/godros/luci-app-godproxy.git ./package/lean/luci-app-godproxy
