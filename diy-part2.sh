@@ -16,4 +16,4 @@
 sed -i 's/ImmortalWrt/LEDE/g' package/base-files/files/bin/config_generate
 sed -i 's/set luci.main.mediaurlbase/#set luci.main.mediaurlbase/g' feeds/luci/themes/luci-theme-bootstrap/root/etc/uci-defaults/30_luci-theme-bootstrap
 sed -i "/CYXluq4wUazHjmCDBCqXF/d" package/emortal/default-settings/files/zzz-default-settings
-sed -i 's/option lang auto/option lang zh_cn/g' feeds/luci/modules/luci-base/root/etc/config/luci
+sed -i 's/auto/zh_cn/g' feeds/luci/modules/luci-base/root/etc/config/luci
