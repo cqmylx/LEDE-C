@@ -18,3 +18,4 @@
 
 #git clone https://github.com/godros/luci-app-godproxy.git ./package/lean/luci-app-godproxy
 git clone https://github.com/garypang13/luci-app-dnsfilter.git ./package/lean/luci-app-dnsfilter
+git clone https://github.com/jerrykuku/luci-app-jd-dailybonus.git ./package/lean/luci-app-jd-dailybonus
