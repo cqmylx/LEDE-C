@@ -19,3 +19,5 @@ sed -i "/CYXluq4wUazHjmCDBCqXF/d" package/emortal/default-settings/files/99-defa
 #sed -i "s/auto/'zh_cn'/g" feeds/luci/modules/luci-base/root/etc/config/luci
 #sed -i "/config internal languages/a\option zh_cn '简体中文 (Simplified Chinese)'\noption en  'English'" feeds/luci/modules/luci-base/root/etc/config/luci
 #sed -i "s/config internal languages/config internal languages\noption zh_cn '简体中文 (Simplified Chinese)'\noption en  'English'/g" feeds/luci/modules/luci-base/root/etc/config/luci
+# 替换默认主题为 luci-theme-argon
+sed -i 's/luci-theme-bootstrap/luci-theme-argon/' feeds/luci/collections/luci/Makefile
