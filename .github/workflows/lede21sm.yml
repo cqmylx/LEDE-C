@@ -26,9 +26,9 @@ on:
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: openwrt-21.02
-  FEEDS_CONF: feeds21sm.conf.default
+  FEEDS_CONF: feeds21.conf.default
   CONFIG_FILE: lede21sm.config
-  DIY_P1_SH: diy-jd.sh
+  DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
