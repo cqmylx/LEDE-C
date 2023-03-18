@@ -63,7 +63,7 @@ jobs:
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
         
-      - name: Cache
+    - name: Cache
       uses: cqmylx/cachewrtbuild@main
       with:
         ccache: 'true'
