@@ -21,7 +21,7 @@ git clone https://github.com/firker/diy-ziyong.git package/diy-ziyong
 git clone https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 git clone -b luci https://github.com/xiaorouji/openwrt-passwall package/passwall
 git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
-git clone https://github.com/sbwml/luci-app-mosdns package/mosdns
+#git clone https://github.com/sbwml/luci-app-mosdns package/mosdns
 #git clone https://github.com/godros/luci-app-godproxy.git ./package/lean/luci-app-godproxy
 #git clone https://github.com/garypang13/luci-app-dnsfilter.git ./package/lean/luci-app-dnsfilter
 #git clone https://github.com/jerrykuku/luci-app-jd-dailybonus.git ./package/lean/luci-app-jd-dailybonus
