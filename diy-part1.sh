@@ -17,7 +17,7 @@
 #sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
 
 git clone https://github.com/fw876/helloworld.git package/ssr
-git clone https://github.com/firker/diy-ziyong.git package/diy-ziyong
+#git clone https://github.com/firker/diy-ziyong.git package/diy-ziyong
 git clone https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 git clone -b luci https://github.com/xiaorouji/openwrt-passwall package/passwall
 #git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
