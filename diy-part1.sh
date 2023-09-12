@@ -19,8 +19,8 @@
 git clone https://github.com/fw876/helloworld.git package/ssr
 #git clone https://github.com/firker/diy-ziyong.git package/diy-ziyong
 git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
-git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
-git clone https://github.com/v2rayA/v2raya-openwrt.git package/v2raya-openwrt
+#git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
+#git clone https://github.com/v2rayA/v2raya-openwrt.git package/v2raya-openwrt
 find ./ | grep Makefile | grep v2ray-geodata | xargs rm -f
 git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
 #git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
