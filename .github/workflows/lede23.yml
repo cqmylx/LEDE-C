@@ -8,7 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Build LEDE-23.05
+name: Build LEDE23
 
 on:
   repository_dispatch:
