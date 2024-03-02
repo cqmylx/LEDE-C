@@ -37,8 +37,10 @@ env:
   TZ: Asia/Shanghai
 
 jobs:
-  build:
-    runs-on: ubuntu-20.04
+   _build_openwrt_x86:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
     - name: 检查项目分支
