@@ -154,9 +154,9 @@ jobs:
         files: ${{ env.FIRMWARE }}/*
 
     - name: Delete workflow runs
-      uses: cqmylx/delete-workflow-runs@main
+      uses: Mattraks/delete-workflow-runs@main
       with:
-        retain_days: 0
+        retain_days: 1
         keep_minimum_runs: 3
 
     - name: 删除旧的Releases
