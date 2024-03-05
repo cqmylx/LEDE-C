@@ -15,13 +15,6 @@ name: Build LEDE
 on:
   repository_dispatch:
   workflow_dispatch:
-  inputs:
-   ssh:
-    description: 'SSH connection to Actions'
-    required: false
-    default: 'false'
-schedule:
-  - cron: 0 21 */7 * * 
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
