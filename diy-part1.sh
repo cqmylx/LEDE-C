@@ -21,8 +21,8 @@
 git clone https://github.com/zijieKwok/istoreos-nas-packages.git package/istoreos-nas-packages
 #git clone https://github.com/animegasan/luci-app-quickstart package/luci-app-quickstart
 git clone https://github.com/linkease/istore.git package/istoreos
-#rm -rf feeds/applications/luci-app-passwall
-#git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
+rm -rf feeds/applications/luci-app-passwall
+git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 #git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
 #rm -rf feeds/net/packages/smartdns
 #git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
