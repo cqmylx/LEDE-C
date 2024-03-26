@@ -26,6 +26,7 @@ rm -rf feeds/applications/luci-app-passwall
 git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
 rm -rf feeds/net/packages//smartdns
 git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
+git clone https://github.com/rianjskis/luci-app-filetransfer.git package/luci-app-filetransfer
 #rm -rf feeds/packages/net/v2ray-geodata
 #git clone https://github.com/godros/luci-app-godproxy.git ./package/lean/luci-app-godproxy
 #git clone https://github.com/garypang13/luci-app-dnsfilter.git ./package/lean/luci-app-dnsfilter
