@@ -24,7 +24,7 @@ git clone https://github.com/linkease/istore.git package/istoreos
 rm -rf feeds/applications/luci-app-passwall
 #git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
-rm -rf feeds/net/packages//smartdns
+rm -rf feeds/net/packages/smartdns
 git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
 git clone https://github.com/rianjskis/luci-app-filetransfer.git package/luci-app-filetransfer
 #rm -rf feeds/packages/net/v2ray-geodata
