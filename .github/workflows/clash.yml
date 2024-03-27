@@ -145,7 +145,7 @@ jobs:
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
-        echo "release_tag=release_tag::$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
         echo "
         💻 架构: ${{ matrix.ARCHITECTURE }}
@@ -157,7 +157,7 @@ jobs:
         ⏱️ 编译时间: $(date +"%Y年%m月%d日%H时%M分") 
         
         " >> release.txt
-        echo "status=success" >> $GITHUB_OUTPUT
+           echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 发布至release
       uses: softprops/action-gh-release@master
