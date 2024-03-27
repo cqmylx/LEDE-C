@@ -17,7 +17,7 @@
 #sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
 #sed -i '$a src-git istore https://github.com/linkease/istore' feeds.conf.default
 
-git clone https://github.com/fw876/helloworld.git package/helloworld
+#git clone https://github.com/fw876/helloworld.git package/helloworld
 #git clone https://github.com/zijieKwok/istoreos-nas-packages.git package/istoreos-nas-packages
 #git clone https://github.com/animegasan/luci-app-quickstart package/luci-app-quickstart
 #git clone https://github.com/linkease/istore.git package/istoreos
