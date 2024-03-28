@@ -152,7 +152,7 @@ jobs:
 
         📂 源码: ${{ env.REPO_URL }}
 
-        🌳 分支: 带openclash
+        🌳 分支: 带openclash passwall
 
         ⏱️ 编译时间: $(date +"%Y年%m月%d日%H时%M分") 
         
