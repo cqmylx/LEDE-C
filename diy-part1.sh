@@ -24,6 +24,7 @@
 rm -rf feeds/luci/applications/luci-app-passwall
 #git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
+git clone https://github.com/xiaorouji/openwrt-passwall2.git package/passwall2
 #rm -rf feeds/luci/applications/luci-app-smartdns
 #git clone -b lede https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns
 #rm -rf feeds/packages/net/v2ray-geodata
