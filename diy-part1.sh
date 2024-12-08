@@ -19,7 +19,7 @@
 
 # Add a feed source
 #sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
-#sed -i '$a src-git istore https://github.com/linkease/istore' feeds.conf.default
+sed -i '$a src-git istore https://github.com/linkease/istore' feeds.conf.default
 #git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
 #git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
 
