@@ -13,7 +13,6 @@
 # Uncomment a feed source
 #sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
 
-rm -rf feeds/luci/applications/luci-app-passwall
 # 添加PassWall插件
 #echo "src-git passwall https://github.com/xiaorouji/openwrt-passwall.git;main" >> "feeds.conf.default"
 #echo "src-git passwall_packages https://github.com/xiaorouji/openwrt-passwall-packages.git;main" >> "feeds.conf.default"
@@ -28,7 +27,8 @@ rm -rf feeds/luci/applications/luci-app-passwall
 #git clone https://github.com/zijieKwok/istoreos-nas-packages.git package/istoreos-nas-packages
 #git clone https://github.com/animegasan/luci-app-quickstart package/luci-app-quickstart
 #git clone https://github.com/linkease/istore.git package/istoreos
-#git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
+rm -rf feeds/luci/applications/luci-app-passwall
+git clone -b packages https://github.com/xiaorouji/openwrt-passwall.git package/openwrt-passwall
 #git clone https://github.com/xiaorouji/openwrt-passwall.git package/passwall
 #git clone https://github.com/xiaorouji/openwrt-passwall2.git package/passwall2
 #rm -rf feeds/luci/applications/luci-app-smartdns
