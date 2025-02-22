@@ -31,7 +31,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-22.04
-   
+
+    steps:
     - name: 检查项目分支
       uses: actions/checkout@main
 
