@@ -1,11 +1,7 @@
 #
-# Copyright (c) 2019-2020 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
-#
-# https://github.com/P3TERX/Actions-OpenWrt
-# Description: Build OpenWrt using GitHub Actions
+# Build OpenWrt using GitHub Actions
+# License: MIT
+# Author: P3TERX & you
 #
 
 name: Build LEDE
@@ -23,9 +19,9 @@ env:
   CONFIG_FILE: lede.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
-  UPLOAD_BIN_DIR: false
-  UPLOAD_FIRMWARE: true
-  UPLOAD_RELEASE: true
+  UPLOAD_BIN_DIR: 'false'        # 请根据需要设置为 'true' 或 'false' 字符串
+  UPLOAD_FIRMWARE: 'true'
+  UPLOAD_RELEASE: 'true'
   TZ: Asia/Shanghai
 
 jobs:
@@ -33,136 +29,134 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: 检查项目分支
-      uses: actions/checkout@main
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-    - name: 释放磁盘空间
+    - name: Free disk space
       uses: jlumbroso/free-disk-space@main
       with:
-      # this might remove tools that are actually needed,
-      # if set to "true" but frees about 6 GB
         tool-cache: true
-      # all of these default to true, but feel free to set to
-      # "false" if necessary for your workflow
         android: true
         dotnet: true
         haskell: true
         large-packages: true
         swap-storage: true
-        
-    - name: 安装编译环境
+
+    - name: Install dependencies
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL raw.githubusercontent.com/cqmylx/LEDE-C/main/depends)
+        sudo -E apt-get -qq install $(curl -fsSL https://raw.githubusercontent.com/cqmylx/LEDE-C/main/depends)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
+        # 创建工作目录，赋予当前用户权限
         sudo mkdir -p /workdir
-        sudo chown $USER:$GROUPS /workdir
-        
-    - name: 克隆源码
+        sudo chown $USER:$USER /workdir
+
+    - name: Clone source code
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Cache
+    - name: Cache ccache
       uses: cqmylx/cachewrtbuild@main
       with:
         ccache: 'true'
-        prefix: ${{ github.workspace }}/openwrt    
+        prefix: ${{ github.workspace }}/openwrt
 
-    - name: 加载自定义feeds
+    - name: Load custom feeds (part 1)
       run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        # 如果feeds配置文件存在，替换默认feeds.conf.default
+        [ -f $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
+        # 执行自定义脚本
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
-    - name: 更新feeds
+    - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
 
-    - name: 安装feeds
+    - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
-    
-    - name: 加载自定义配置
+
+    - name: Load custom config (part 2)
       run: |
-        [ -e files ] && mv files openwrt/files
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        [ -d files ] && mv files openwrt/files
+        [ -f $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
-    - name: 下载软件包
-      id: package
+    - name: Download packages
       run: |
         cd openwrt
         make defconfig
         make download -j8
+        # 删除下载目录中过小（损坏的）文件
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: 编译固件
+    - name: Compile firmware
       id: compile
       run: |
         cd openwrt
-        echo -e "$(nproc) thread compile"
+        echo "Using $(nproc) threads for compilation"
         make -j$(nproc) || make -j1 || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
+        # 记录设备名称，方便后续使用
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        if [ -s DEVICE_NAME ]; then
+          echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        else
+          echo "DEVICE_NAME=" >> $GITHUB_ENV
+        fi
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    - name: 检查磁盘空间
-      if: (!cancelled())
+    - name: Check disk space
+      if: ${{ !cancelled() }}
       run: df -hT
 
-    - name: 上传bin文件夹
-      uses: actions/upload-artifact@main
+    - name: Upload bin folder
+      uses: actions/upload-artifact@v3
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
-    - name: 整理文件
+    - name: Organize firmware files
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: env.UPLOAD_FIRMWARE == 'true' && ${{ !cancelled() }}
       run: |
         cd openwrt/bin/targets/*/*
-        rm -rf packages
-        # rm -rf *.buildinfo
-        rm -rf profiles.json
-        rm -rf *.manifest
-        rm -rf *-kernel.bin
-        rm -rf *-rootfs.img
-        rm -rf *-rootfs.img.gz
-        rm -rf sha256sums
+        # 删除无用文件，减小体积
+        rm -rf packages profiles.json *.manifest *-kernel.bin *-rootfs.img* sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
-    - name: 上传固件
-      uses: actions/upload-artifact@main
-      if: steps.organize.outputs.status == 'success' && !cancelled()
+    - name: Upload firmware
+      uses: actions/upload-artifact@v3
+      if: steps.organize.outputs.status == 'success' && ${{ !cancelled() }}
       with:
-        name: OpenWrt官方_x64_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        name: OpenWrt_Official_x64_Firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: 生成release标签
+    - name: Create release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
-        touch release.txt
         echo "status=success" >> $GITHUB_OUTPUT
+        touch release.txt
 
-    - name: 发布固件
+    - name: Publish release
       uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && !cancelled()
+      if: steps.tag.outputs.status == 'success' && ${{ !cancelled() }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -170,15 +164,15 @@ jobs:
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
-    - name: 清理workflow
+    - name: Clean up workflow runs
       uses: Mattraks/delete-workflow-runs@main
       with:
         retain_days: 1
         keep_minimum_runs: 3
 
-    - name: 清理Releases
+    - name: Clean up old releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
       with:
         keep_latest: 3
         delete_tags: true
