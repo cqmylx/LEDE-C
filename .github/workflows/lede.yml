@@ -56,6 +56,14 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$USER /workdir
 
+    - name: Create large tmp directory and set TMPDIR
+      run: |
+        mkdir -p /workdir/tmp
+        echo "TMPDIR=/workdir/tmp" >> $GITHUB_ENV
+
+    - name: Check disk space before clone
+      run: df -hT
+
     - name: Clone source code
       working-directory: /workdir
       run: |
@@ -98,8 +106,13 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
+    - name: Check disk space before compile
+      run: df -hT
+
     - name: Compile firmware
       id: compile
+      env:
+        TMPDIR: ${{ env.TMPDIR }}
       run: |
         cd openwrt
         echo "Using $(nproc) threads for compilation"
@@ -113,7 +126,7 @@ jobs:
         fi
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    - name: Check disk space
+    - name: Check disk space after compile
       if: ${{ !cancelled() }}
       run: df -hT
 
