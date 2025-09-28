@@ -19,7 +19,7 @@ env:
   CONFIG_FILE: lede.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
-  UPLOAD_BIN_DIR: 'false'        # 请根据需要设置为 'true' 或 'false' 字符串
+  UPLOAD_BIN_DIR: 'false'        # 请根据需要设置 'true' 或 'false' 字符串
   UPLOAD_FIRMWARE: 'true'
   UPLOAD_RELEASE: 'true'
   TZ: Asia/Shanghai
@@ -53,7 +53,6 @@ jobs:
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
-        # 创建工作目录，赋予当前用户权限
         sudo mkdir -p /workdir
         sudo chown $USER:$USER /workdir
 
@@ -72,11 +71,9 @@ jobs:
 
     - name: Load custom feeds (part 1)
       run: |
-        # 如果feeds配置文件存在，替换默认feeds.conf.default
         [ -f $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
-        # 执行自定义脚本
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Update feeds
@@ -98,7 +95,6 @@ jobs:
         cd openwrt
         make defconfig
         make download -j8
-        # 删除下载目录中过小（损坏的）文件
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
@@ -109,7 +105,6 @@ jobs:
         echo "Using $(nproc) threads for compilation"
         make -j$(nproc) || make -j1 || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
-        # 记录设备名称，方便后续使用
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         if [ -s DEVICE_NAME ]; then
           echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
@@ -123,7 +118,7 @@ jobs:
       run: df -hT
 
     - name: Upload bin folder
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
@@ -134,13 +129,12 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && ${{ !cancelled() }}
       run: |
         cd openwrt/bin/targets/*/*
-        # 删除无用文件，减小体积
         rm -rf packages profiles.json *.manifest *-kernel.bin *-rootfs.img* sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && ${{ !cancelled() }}
       with:
         name: OpenWrt_Official_x64_Firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
