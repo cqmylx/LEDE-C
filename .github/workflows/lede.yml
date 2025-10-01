@@ -42,7 +42,7 @@ jobs:
         large-packages: true
         swap-storage: true
 
-    - name: Install dependencies
+    - name: 安装编译环境
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -64,7 +64,7 @@ jobs:
     - name: Check disk space before clone
       run: df -hT
 
-    - name: Clone source code
+    - name: 克隆源码
       working-directory: /workdir
       run: |
         df -hT $PWD
@@ -77,20 +77,20 @@ jobs:
         ccache: 'true'
         prefix: ${{ github.workspace }}/openwrt
 
-    - name: Load custom feeds (part 1)
+    - name: 加载自定义feeds
       run: |
         [ -f $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
-    - name: Update feeds
+    - name: 更新feeds
       run: cd openwrt && ./scripts/feeds update -a
 
-    - name: Install feeds
+    - name: 安装feeds
       run: cd openwrt && ./scripts/feeds install -a
 
-    - name: Load custom config (part 2)
+    - name: 加载自定义配置
       run: |
         [ -d files ] && mv files openwrt/files
         [ -f $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
@@ -98,7 +98,7 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
-    - name: Download packages
+    - name: 下载软件包
       run: |
         cd openwrt
         make defconfig
@@ -109,7 +109,7 @@ jobs:
     - name: Check disk space before compile
       run: df -hT
 
-    - name: Compile firmware
+    - name: 编译固件
       id: compile
       env:
         TMPDIR: /workdir/tmp
@@ -118,7 +118,7 @@ jobs:
         echo "TMPDIR=$TMPDIR"
         df -hT $TMPDIR
         echo "Using 1 thread for compilation to reduce memory and disk pressure"
-        make -j1 V=s
+        make -j$(nproc) || make -j1 || make -j1 V=s
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         if [ -s DEVICE_NAME ]; then
@@ -128,25 +128,25 @@ jobs:
         fi
         echo "FILE_DATE=_$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
 
-    - name: Check disk space after compile
+    - name: 检查磁盘空间
       if: ${{ !cancelled() }}
       run: df -hT
 
-    - name: Clean build temp files
+    - name: 清理构建临时文件
       if: steps.compile.outputs.status == 'success'
       run: |
         cd openwrt
         rm -rf build_dir/tmp tmp
         df -hT
 
-    - name: Upload bin folder
+    - name: 上传bin文件夹
       uses: actions/upload-artifact@v4
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
 
-    - name: Organize firmware files
+    - name: 整理文件
       id: organize
       if: env.UPLOAD_FIRMWARE == 'true' && ${{ !cancelled() }}
       run: |
@@ -155,14 +155,14 @@ jobs:
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
-    - name: Upload firmware
+    - name: 上传固件
       uses: actions/upload-artifact@v4
       if: steps.organize.outputs.status == 'success' && ${{ !cancelled() }}
       with:
         name: OpenWrt_Official_x64_Firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
-    - name: Create release tag
+    - name: 生成release标签
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
       run: |
@@ -170,7 +170,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         touch release.txt
 
-    - name: Publish release
+    - name: 发布固件
       uses: softprops/action-gh-release@v1
       if: steps.tag.outputs.status == 'success' && ${{ !cancelled() }}
       env:
@@ -180,13 +180,13 @@ jobs:
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
-    - name: Clean up workflow runs
+    - name: 清理workflow
       uses: Mattraks/delete-workflow-runs@main
       with:
         retain_days: 1
         keep_minimum_runs: 3
 
-    - name: Clean up old releases
+    - name: 清理Releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
       if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
       with:
