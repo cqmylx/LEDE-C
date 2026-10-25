@@ -3,15 +3,12 @@
 # License: MIT
 # Author: P3TERX & you
 #
-
 name: Build LEDE
-
 on:
   repository_dispatch:
   workflow_dispatch:
   #schedule:
   #  - cron: 0 16 4,9,14,19,24,28,31 * *
-
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
   REPO_BRANCH: master
@@ -23,15 +20,12 @@ env:
   UPLOAD_FIRMWARE: 'true'
   UPLOAD_RELEASE: 'true'
   TZ: Asia/Shanghai
-
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-
     - name: Free disk space
       uses: jlumbroso/free-disk-space@main
       with:
@@ -41,7 +35,6 @@ jobs:
         haskell: true
         large-packages: true
         swap-storage: true
-
     - name: 安装编译环境
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -55,41 +48,33 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$USER /workdir
-
     - name: Create large tmp directory and set TMPDIR
       run: |
         mkdir -p /workdir/tmp
         echo "TMPDIR=/workdir/tmp" >> $GITHUB_ENV
-
     - name: Check disk space before clone
       run: df -hT
-
     - name: 克隆源码
       working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-
     - name: Cache ccache
       uses: cqmylx/cachewrtbuild@main
       with:
         ccache: 'true'
         prefix: ${{ github.workspace }}/openwrt
-
     - name: 加载自定义feeds
       run: |
         [ -f $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
-
     - name: 更新feeds
       run: cd openwrt && ./scripts/feeds update -a
-
     - name: 安装feeds
       run: cd openwrt && ./scripts/feeds install -a
-
     - name: 加载自定义配置
       run: |
         [ -d files ] && mv files openwrt/files
@@ -97,7 +82,6 @@ jobs:
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
-
     - name: 下载软件包
       run: |
         cd openwrt
@@ -105,10 +89,8 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
-
     - name: Check disk space before compile
       run: df -hT
-
     - name: 编译固件
       id: compile
       env:
@@ -127,68 +109,59 @@ jobs:
           echo "DEVICE_NAME=" >> $GITHUB_ENV
         fi
         echo "FILE_DATE=_$(date +'%Y%m%d%H%M')" >> $GITHUB_ENV
-
     - name: 检查磁盘空间
       if: ${{ !cancelled() }}
       run: df -hT
-
     - name: 清理构建临时文件
-      if: steps.compile.outputs.status == 'success'
+      if: ${{ steps.compile.outputs.status == 'success' }}
       run: |
         cd openwrt
         rm -rf build_dir/tmp tmp
         df -hT
-
     - name: 上传bin文件夹
       uses: actions/upload-artifact@v4
-      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      if: ${{ steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true' }}
       with:
         name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
-
     - name: 整理文件
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && ${{ !cancelled() }}
+      if: ${{ env.UPLOAD_FIRMWARE == 'true' && !cancelled() }}
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages profiles.json *.manifest *-kernel.bin *-rootfs.img* sha256sums
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
-
     - name: 上传固件
       uses: actions/upload-artifact@v4
-      if: steps.organize.outputs.status == 'success' && ${{ !cancelled() }}
+      if: ${{ steps.organize.outputs.status == 'success' && !cancelled() }}
       with:
         name: OpenWrt_Official_x64_Firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
-
     - name: 生成release标签
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
+      if: ${{ env.UPLOAD_RELEASE == 'true' && !cancelled() }}
       run: |
         echo "release_tag=$(date +'%Y.%m.%d-%H%M')" >> $GITHUB_OUTPUT
         echo "status=success" >> $GITHUB_OUTPUT
         touch release.txt
-
     - name: 发布固件
       uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && ${{ !cancelled() }}
+      if: ${{ steps.tag.outputs.status == 'success' && !cancelled() }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
-
     - name: 清理workflow
       uses: Mattraks/delete-workflow-runs@main
       with:
         retain_days: 1
         keep_minimum_runs: 3
-
     - name: 清理Releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
-      if: env.UPLOAD_RELEASE == 'true' && ${{ !cancelled() }}
+      if: ${{ env.UPLOAD_RELEASE == 'true' && !cancelled() }}
       with:
         keep_latest: 3
         delete_tags: true
