@@ -3,6 +3,13 @@
 # License: MIT
 # Author: P3TERX & you
 #
+# 修复说明：
+# 1. runs-on: ubuntu-22.04 -> ubuntu-24.04 （自带 clang-18，原生支持 -std=c++23，解决 gn 包编译失败）
+# 2. make 重试逻辑：去掉无日志的 -j1 中间重试，多核失败直接切单线程+V=s 详细日志
+# 3. 增加 SKIP_BROKEN=1，自动跳过 broken 包，避免单个包炸掉整个固件
+# 4. 注释掉 timedatectl（GitHub runner 无 systemd，该命令必报错）
+# 5. actions/checkout@v3 -> v4
+#
 name: Build LEDE
 on:
   repository_dispatch:
@@ -22,10 +29,10 @@ env:
   TZ: Asia/Shanghai
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Free disk space
       uses: jlumbroso/free-disk-space@main
       with:
@@ -45,7 +52,8 @@ jobs:
         sudo -E apt-get -qq install $(curl -fsSL https://raw.githubusercontent.com/cqmylx/LEDE-C/main/depends)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
-        sudo timedatectl set-timezone "$TZ"
+        # GitHub runner 无 systemd，timedatectl 不可用，已注释
+        # sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$USER /workdir
     - name: Create large tmp directory and set TMPDIR
@@ -100,7 +108,8 @@ jobs:
         echo "TMPDIR=$TMPDIR"
         df -hT $TMPDIR
         echo "Using 1 thread for compilation to reduce memory and disk pressure"
-        make -j$(nproc) || make -j1 || make -j1 V=s
+        # 多核失败直接切单线程+V=s 详细日志；SKIP_BROKEN=1 自动跳过 broken 包
+        make -j$(nproc) SKIP_BROKEN=1 || make -j1 V=s SKIP_BROKEN=1
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         if [ -s DEVICE_NAME ]; then
@@ -151,7 +160,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{ env.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
     - name: 清理workflow
