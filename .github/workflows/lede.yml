@@ -2,14 +2,12 @@
 # Build OpenWrt using GitHub Actions
 # License: MIT
 # Author: P3TERX & you
-#
 # 修复说明：
-# 1. runs-on: ubuntu-22.04 -> ubuntu-24.04 （自带 clang-18，原生支持 -std=c++23，解决 gn 包编译失败）
-# 2. make 重试逻辑：去掉无日志的 -j1 中间重试，多核失败直接切单线程+V=s 详细日志
-# 3. 增加 SKIP_BROKEN=1，自动跳过 broken 包，避免单个包炸掉整个固件
-# 4. 注释掉 timedatectl（GitHub runner 无 systemd，该命令必报错）
-# 5. actions/checkout@v3 -> v4
-#
+# 1. 保留 ubuntu-22.04，兼容 cqmylx 的 depends 依赖清单，不会报包找不到
+# 2. 在 diy-part2.sh 阶段自动补丁 gn，把 -std=c++23 替换成 -std=c++2b，适配 clang14
+# 3. 优化make编译命令，增加 SKIP_BROKEN=1，失败直接带V=s输出详细日志
+# 4. 移除无效的 timedatectl 命令（gh runner无systemd，会报错）
+# 5. checkout升级v4
 name: Build LEDE
 on:
   repository_dispatch:
@@ -29,7 +27,7 @@ env:
   TZ: Asia/Shanghai
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -52,7 +50,7 @@ jobs:
         sudo -E apt-get -qq install $(curl -fsSL https://raw.githubusercontent.com/cqmylx/LEDE-C/main/depends)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
-        # GitHub runner 无 systemd，timedatectl 不可用，已注释
+        # timedatectl 在gh runner环境不可用，注释掉
         # sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$USER /workdir
@@ -83,13 +81,18 @@ jobs:
       run: cd openwrt && ./scripts/feeds update -a
     - name: 安装feeds
       run: cd openwrt && ./scripts/feeds install -a
-    - name: 加载自定义配置
+    - name: 加载自定义配置 & 补丁修复gn（核心！）
       run: |
         [ -d files ] && mv files openwrt/files
         [ -f $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+        # ========== 自动修复gn c++23 clang14不兼容问题 ==========
+        if [ -f feeds/packages/devel/gn/Makefile ]; then
+          echo "【Patch gn】 将 -std=c++23 替换为 -std=c++2b"
+          sed -i 's/-std=c++23/-std=c++2b/g' feeds/packages/devel/gn/Makefile
+        fi
     - name: 下载软件包
       run: |
         cd openwrt
@@ -108,7 +111,6 @@ jobs:
         echo "TMPDIR=$TMPDIR"
         df -hT $TMPDIR
         echo "Using 1 thread for compilation to reduce memory and disk pressure"
-        # 多核失败直接切单线程+V=s 详细日志；SKIP_BROKEN=1 自动跳过 broken 包
         make -j$(nproc) SKIP_BROKEN=1 || make -j1 V=s SKIP_BROKEN=1
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
@@ -160,7 +162,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.release_tag }}
+        tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
     - name: 清理workflow
