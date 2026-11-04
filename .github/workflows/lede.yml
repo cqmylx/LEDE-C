@@ -1,8 +1,8 @@
 #
 # Build OpenWrt using GitHub Actions
-# 适配 ImmortalWrt x86_64 generic‑grub
+# 适配 ImmortalWrt master(25.12 snapshot) x86_64 generic‑grub
 # 补丁：gn + libacl Werror
-# 注意：lede.config必须关闭 CONFIG_USE_APK=y，使用opkg包管理器
+# 注意：master当前基线=25.12，CONFIG_USE_APK=y，使用apk包管理器
 name: Build LEDE x86_64
 on:
   repository_dispatch:
@@ -26,7 +26,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -36,7 +35,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-
       - name: Install dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -49,37 +47,30 @@ jobs:
           sudo -E apt-get clean
           sudo mkdir -p /workdir
           sudo chown $USER:$USER /workdir
-
       - name: Create temp dir
         run: |
           mkdir -p /workdir/tmp
           echo "TMPDIR=/workdir/tmp" >> $GITHUB_ENV
-
       - name: Clone ImmortalWrt source
         working-directory: /workdir
         run: |
           git clone --depth 1 -b $REPO_BRANCH $REPO_URL openwrt
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
-
       - name: Cache ccache
         uses: cqmylx/cachewrtbuild@main
         with:
           ccache: true
           prefix: ${{ github.workspace }}/openwrt
-
       - name: Load feeds & diy-part1
         run: |
           [ -f $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
           chmod +x $DIY_P1_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P1_SH
-
       - name: Update feeds
         run: cd openwrt && ./scripts/feeds update -a
-
       - name: Install feeds
         run: cd openwrt && ./scripts/feeds install -a
-
       - name: Load config + DIY_P2 + Patch GN + Patch libacl
         run: |
           [ -d files ] && mv files openwrt/files
@@ -99,14 +90,12 @@ jobs:
             sed -i 's/-Werror//g' $LIBACL_MK
             sed -i '/TARGET_CFLAGS/ s/$/ -Wno-error/' $LIBACL_MK
           fi
-
       - name: Download source
         run: |
           cd openwrt
           make defconfig
           make download -j8
           find dl -size -1024c -exec rm -f {} \;
-
       - name: Compile firmware
         id: compile
         env:
@@ -114,15 +103,8 @@ jobs:
         run: |
           cd openwrt
           echo "TMPDIR=$TMPDIR"
-          # 编译软件包&内核 world
+          # master(25.12) apk体系，make world 直接编译包+镜像，不需要额外 make image
           make -j1 V=s SKIP_BROKEN=1 2>&1 | tee build.log
-          ret=$?
-          if [ $ret -ne 0 ];then
-            echo "status=fail" >> $GITHUB_OUTPUT
-            exit $ret
-          fi
-          # 【关键】生成固件镜像 image目标，apk模式此命令无效！
-          make -j1 V=s image SKIP_BROKEN=1 2>&1 | tee -a build.log
           ret=$?
           if [ $ret -ne 0 ];then
             echo "status=fail" >> $GITHUB_OUTPUT
@@ -132,38 +114,32 @@ jobs:
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV || echo "DEVICE_NAME=" >> $GITHUB_ENV
           echo "BUILD_DATE=_$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
-
       - name: Upload build log when failed
         if: failure()
         uses: actions/upload-artifact@v5
         with:
           name: openwrt-build-error-log
           path: openwrt/build.log
-
       - name: Check disk
         if: steps.compile.outputs.status == 'success'
         run: df -h
-
       - name: Debug list target firmware files
         if: steps.compile.outputs.status == 'success'
         run: |
           cd openwrt
           echo "==== bin/targets tree ===="
           ls -laR bin/targets
-
       - name: Clean build temp
         if: steps.compile.outputs.status == 'success'
         run: |
           cd openwrt
           rm -rf build_dir/target-*/tmp
-
       - name: Upload bin folder
         uses: actions/upload-artifact@v5
         if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
         with:
           name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.BUILD_DATE }}
           path: openwrt/bin
-
       - name: Organize firmware
         id: organize
         if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
@@ -174,14 +150,12 @@ jobs:
           ls -la
           echo "FIRMWARE_PATH=$PWD" >> $GITHUB_OUTPUT
           echo "status=success" >> $GITHUB_OUTPUT
-
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v5
         if: steps.organize.outputs.status == 'success'
         with:
           name: OpenWrt_Firmware${{ env.DEVICE_NAME }}${{ env.BUILD_DATE }}
           path: ${{ steps.organize.outputs.FIRMWARE_PATH }}
-
       - name: Release
         uses: softprops/action-gh-release@v1
         if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true'
@@ -189,15 +163,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.BUILD_DATE }}
-          name: OpenWrt ${{ env.BUILD_DATE }} ${{ env.DEVICE_NAME }}
+          name: ImmortalWrt master(25.12) ${{ env.BUILD_DATE }} ${{ env.DEVICE_NAME }}
           files: ${{ steps.organize.outputs.FIRMWARE_PATH }}/*
-
       - name: Delete old workflow runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
           retain_days: 1
           keep_minimum_runs: 3
-
       - name: Delete old releases
         uses: dev-drprasad/delete-older-releases@v0.3.2
         if: env.UPLOAD_RELEASE == 'true'
