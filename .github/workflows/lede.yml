@@ -1,8 +1,8 @@
 #
 # Build OpenWrt using GitHub Actions
-# 适配 ImmortalWrt master(25.12 snapshot) x86_64 generic‑grub
+# 适配 ImmortalWrt master x86_64 generic‑grub
 # 补丁：gn + libacl Werror
-# 注意：master当前基线=25.12，CONFIG_USE_APK=y，使用apk包管理器
+# 注意：master 使用apk包管理器，CONFIG_USE_APK=y
 name: Build LEDE x86_64
 on:
   repository_dispatch:
@@ -103,7 +103,7 @@ jobs:
         run: |
           cd openwrt
           echo "TMPDIR=$TMPDIR"
-          # master(25.12) apk体系，make world 直接编译包+镜像，不需要额外 make image
+          # master 分支，make world 一次性编译软件包+镜像
           make -j1 V=s SKIP_BROKEN=1 2>&1 | tee build.log
           ret=$?
           if [ $ret -ne 0 ];then
@@ -163,7 +163,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.BUILD_DATE }}
-          name: ImmortalWrt master(25.12) ${{ env.BUILD_DATE }} ${{ env.DEVICE_NAME }}
+          name: OpenWrt ${{ env.BUILD_DATE }} ${{ env.DEVICE_NAME }}
           files: ${{ steps.organize.outputs.FIRMWARE_PATH }}/*
       - name: Delete old workflow runs
         uses: Mattraks/delete-workflow-runs@v2
