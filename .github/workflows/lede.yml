@@ -1,8 +1,9 @@
 #
 # Build OpenWrt using GitHub Actions
-# 适配 ImmortalWrt MT7981 Filogic
-# 补丁：gn + ATF arm-trusted-firmware-mediatek + libacl Werror
-name: Build LEDE
+# 适配 ImmortalWrt x86_64 generic‑grub
+# 补丁：gn + libacl Werror
+# 注意：lede.config必须关闭 CONFIG_USE_APK=y，使用opkg包管理器
+name: Build LEDE x86_64
 on:
   repository_dispatch:
   workflow_dispatch:
@@ -79,7 +80,7 @@ jobs:
       - name: Install feeds
         run: cd openwrt && ./scripts/feeds install -a
 
-      - name: Load config + DIY_P2 + Patch GN + Patch MT7981 ATF + Patch libacl
+      - name: Load config + DIY_P2 + Patch GN + Patch libacl
         run: |
           [ -d files ] && mv files openwrt/files
           [ -f $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
@@ -91,16 +92,7 @@ jobs:
             echo "[Patch GN] -std=c++23 -> -std=c++2b"
             sed -i 's/-std=c++23/-std=c++2b/g' feeds/packages/devel/gn/Makefile
           fi
-          # 【补丁2】修复 MT7981 ATF arm-trusted-firmware-mediatek deprecated-declarations Werror
-          ATF_MK=package/boot/arm-trusted-firmware-mediatek/Makefile
-          if [ -f "$ATF_MK" ]; then
-            echo "[Patch ATF] Remove -Werror for mediatek ATF"
-            sed -i 's/-Werror//g' $ATF_MK
-            sed -i '/^MAKE_FLAGS/ s/$/ CFLAGS="-Wno-deprecated-declarations"/' $ATF_MK
-            # 兜底：递归清理源码内所有Makefile的-Werror
-            find package/boot/arm-trusted-firmware-mediatek/ -name "Makefile" -type f | xargs sed -i 's/-Werror//g'
-          fi
-          # 【补丁3】修复 libacl Werror 编译失败（你当前卡住的包）
+          # 【补丁2】修复 libacl Werror 编译失败
           LIBACL_MK=feeds/packages/libs/acl/Makefile
           if [ -f "$LIBACL_MK" ]; then
             echo "[Patch libacl] Remove -Werror"
@@ -122,7 +114,15 @@ jobs:
         run: |
           cd openwrt
           echo "TMPDIR=$TMPDIR"
+          # 编译软件包&内核 world
           make -j1 V=s SKIP_BROKEN=1 2>&1 | tee build.log
+          ret=$?
+          if [ $ret -ne 0 ];then
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit $ret
+          fi
+          # 【关键】生成固件镜像 image目标，apk模式此命令无效！
+          make -j1 V=s image SKIP_BROKEN=1 2>&1 | tee -a build.log
           ret=$?
           if [ $ret -ne 0 ];then
             echo "status=fail" >> $GITHUB_OUTPUT
@@ -135,7 +135,7 @@ jobs:
 
       - name: Upload build log when failed
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: openwrt-build-error-log
           path: openwrt/build.log
@@ -144,6 +144,13 @@ jobs:
         if: steps.compile.outputs.status == 'success'
         run: df -h
 
+      - name: Debug list target firmware files
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          cd openwrt
+          echo "==== bin/targets tree ===="
+          ls -laR bin/targets
+
       - name: Clean build temp
         if: steps.compile.outputs.status == 'success'
         run: |
@@ -151,7 +158,7 @@ jobs:
           rm -rf build_dir/target-*/tmp
 
       - name: Upload bin folder
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
         with:
           name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.BUILD_DATE }}
@@ -162,12 +169,14 @@ jobs:
         if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true'
         run: |
           cd openwrt/bin/targets/*/*
-          rm -rf packages profiles *.manifest *-kernel.bin *-rootfs.img sha256sums
+          # x86_64不要删除*-rootfs.img，combined.img依赖它，仅清理无关文件
+          rm -rf packages profiles *.manifest sha256sums
+          ls -la
           echo "FIRMWARE_PATH=$PWD" >> $GITHUB_OUTPUT
           echo "status=success" >> $GITHUB_OUTPUT
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: steps.organize.outputs.status == 'success'
         with:
           name: OpenWrt_Firmware${{ env.DEVICE_NAME }}${{ env.BUILD_DATE }}
