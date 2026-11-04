@@ -1,7 +1,7 @@
 #
 # Build OpenWrt using GitHub Actions
 # 适配 ImmortalWrt MT7981 Filogic
-# 补丁：gn + ATF arm-trusted-firmware-mediatek Werror
+# 补丁：gn + ATF arm-trusted-firmware-mediatek + libacl Werror
 name: Build LEDE
 on:
   repository_dispatch:
@@ -19,18 +19,17 @@ env:
   UPLOAD_FIRMWARE: 'true'
   UPLOAD_RELEASE: 'true'
   TZ: Asia/Shanghai
-
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: true
+          preinstalled-runtimes: true
           android: true
           dotnet: true
           haskell: true
@@ -80,20 +79,18 @@ jobs:
       - name: Install feeds
         run: cd openwrt && ./scripts/feeds install -a
 
-      - name: Load config + DIY_P2 + Patch GN + Patch MT7981 ATF
+      - name: Load config + DIY_P2 + Patch GN + Patch MT7981 ATF + Patch libacl
         run: |
           [ -d files ] && mv files openwrt/files
           [ -f $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
           chmod +x $DIY_P2_SH
           cd openwrt
           $GITHUB_WORKSPACE/$DIY_P2_SH
-
           # 【补丁1】修复 gn -std=c++23 在clang14报错
           if [ -f feeds/packages/devel/gn/Makefile ]; then
             echo "[Patch GN] -std=c++23 -> -std=c++2b"
             sed -i 's/-std=c++23/-std=c++2b/g' feeds/packages/devel/gn/Makefile
           fi
-
           # 【补丁2】修复 MT7981 ATF arm-trusted-firmware-mediatek deprecated-declarations Werror
           ATF_MK=package/boot/arm-trusted-firmware-mediatek/Makefile
           if [ -f "$ATF_MK" ]; then
@@ -102,6 +99,13 @@ jobs:
             sed -i '/^MAKE_FLAGS/ s/$/ CFLAGS="-Wno-deprecated-declarations"/' $ATF_MK
             # 兜底：递归清理源码内所有Makefile的-Werror
             find package/boot/arm-trusted-firmware-mediatek/ -name "Makefile" -type f | xargs sed -i 's/-Werror//g'
+          fi
+          # 【补丁3】修复 libacl Werror 编译失败（你当前卡住的包）
+          LIBACL_MK=feeds/packages/libs/acl/Makefile
+          if [ -f "$LIBACL_MK" ]; then
+            echo "[Patch libacl] Remove -Werror"
+            sed -i 's/-Werror//g' $LIBACL_MK
+            sed -i '/TARGET_CFLAGS/ s/$/ -Wno-error/' $LIBACL_MK
           fi
 
       - name: Download source
@@ -118,11 +122,23 @@ jobs:
         run: |
           cd openwrt
           echo "TMPDIR=$TMPDIR"
-          make -j$(nproc) SKIP_BROKEN=1 || make -j1 V=s SKIP_BROKEN=1
+          make -j1 V=s SKIP_BROKEN=1 2>&1 | tee build.log
+          ret=$?
+          if [ $ret -ne 0 ];then
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit $ret
+          fi
           echo "status=success" >> $GITHUB_OUTPUT
           grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
           [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV || echo "DEVICE_NAME=" >> $GITHUB_ENV
           echo "BUILD_DATE=_$(date +%Y%m%d-%H%M)" >> $GITHUB_ENV
+
+      - name: Upload build log when failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-build-error-log
+          path: openwrt/build.log
 
       - name: Check disk
         if: steps.compile.outputs.status == 'success'
